@@ -8,7 +8,7 @@ import mimetypes
 from PIL import Image
 
 # Directly provide the API key string
-API_KEY = "AIzaSyBIMwe0ysz9ViSsqdkxCh7pyJiT3PO54vQ"
+API_KEY = ""
 client = genai.Client(api_key=API_KEY)
 
 # 2. Tạo đối tượng Path từ đường dẫn
