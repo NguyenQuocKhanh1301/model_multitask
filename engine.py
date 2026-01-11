@@ -5,17 +5,20 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, f1_score
 from metrics import calculate_iou
-
+from focal_loss import FocalLoss
 
 import torch
 import utils
 
 
-def train_one_epoch(model, lr_scheduler, optimizer, data_loader, device, epoch, alpha, print_freq, scaler=None):
+
+
+def train_one_epoch(model, lr_scheduler, optimizer, data_loader, device, epoch, lamda1, lamda2, print_freq, scaler=None):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value:.6f}"))
     header = f"Epoch: [{epoch}]"
+    seg_criterion = FocalLoss(alpha=[0.0779, 2.4951, 0.9912, 0.4357], gamma=2.0, reduction='mean')
     criterion = torch.nn.CrossEntropyLoss()
     # lr_scheduler = None
     # if epoch == 0:
@@ -38,14 +41,14 @@ def train_one_epoch(model, lr_scheduler, optimizer, data_loader, device, epoch, 
         seg_output, pred_cls, out_put_aux = out_puts['out'], out_puts['cls'], out_puts['aux']
 
         # Tính loss chính
-        loss_seg = criterion(seg_output, targets)
+        loss_seg = seg_criterion(seg_output, targets)
         loss_cls = criterion(pred_cls, cls_labels)
 
         # (Tùy chọn) Nếu bạn muốn dùng thêm Aux Loss để kết quả tốt hơn:
         if "aux" in out_puts:
             aux_loss = criterion(out_put_aux, targets)
         # loss = loss_seg * alpha + (1-alpha) * loss_cls + 0.4 * aux_loss
-        loss = loss_seg  + alpha * loss_cls + 0.3 * aux_loss
+        loss = loss_seg  + lamda1 * loss_cls + lamda2 * aux_loss
         total_loss += loss.item()
         
         loss.backward()
@@ -65,12 +68,14 @@ def train_one_epoch(model, lr_scheduler, optimizer, data_loader, device, epoch, 
 
 
 @torch.inference_mode()
-def evaluate(model, data_loader, alpha,  device):
+def evaluate(model, data_loader, lamda1, lamda2,  device):
     torch.set_num_threads(1)
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = "Test:"
-    criterion_seg = torch.nn.CrossEntropyLoss()
+    # criterion_seg = torch.nn.CrossEntropyLoss()
+    seg_criterion = FocalLoss(alpha=[0.0779, 2.4951, 0.9912, 0.4357], gamma=2.0, reduction='mean')
+    
     criterion_cls = torch.nn.CrossEntropyLoss()
 
 
@@ -93,14 +98,14 @@ def evaluate(model, data_loader, alpha,  device):
 
 
             # Tính loss chính
-            loss_seg = criterion_seg(seg_output, targets)
+            loss_seg = seg_criterion(seg_output, targets)
             loss_cls = criterion_cls(pred_cls, cls_label)
 
             # (Tùy chọn) Nếu bạn muốn dùng thêm Aux Loss để kết quả tốt hơn:
             if "aux" in out_puts:
-                aux_loss = criterion_seg(aux, targets)
+                aux_loss = seg_criterion(aux, targets)
             # loss = alpha * loss_seg + (1-alpha) * loss_cls + 0.4 * aux_loss
-            loss = loss_seg + alpha * loss_cls + 0.4 * aux_loss
+            loss = loss_seg + lamda1 * loss_cls + lamda2 * aux_loss
             
             total_loss += loss.item()
             total_iou += calculate_iou(seg_output, targets, 4)
