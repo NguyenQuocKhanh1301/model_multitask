@@ -198,9 +198,9 @@ if __name__ == "__main__":
     num_classes_cls = 5
     # use our dataset and defined transformations
     dataset_train = CustomDataset('/mnt/mmlab2024nas/khanhnq/Dataset/ImageSets/train.txt', get_transform(train=True))
-    dataset_aug = CustomDataset('/mnt/mmlab2024nas/khanhnq/Dataset/data_augment/aug.csv', get_transform(train=True), augment=True)
     # concat train and aug
-    dataset_train = ConcatDataset([dataset_train, dataset_aug])
+    # dataset_aug = CustomDataset('/mnt/mmlab2024nas/khanhnq/Dataset/data_augment/aug.csv', get_transform(train=True), augment=True)
+    # dataset_train = ConcatDataset([dataset_train, dataset_aug])
     dataset_test = CustomDataset('/mnt/mmlab2024nas/khanhnq/Dataset/ImageSets/test.txt', get_transform(train=False))
 
 
@@ -255,8 +255,8 @@ if __name__ == "__main__":
         milestones=[warmup_iters]
     )
 
-    exp_name = 'log11'
-    csv_log_path = f"/home/khanhnq/Experiment/Mask_RCNN/{exp_name}/training_log.csv"
+    exp_name = 'ex1'
+    csv_log_path = f"/home/khanhnq/Experiment/Mask_RCNN/Experimence/{exp_name}/training_log.csv"
     path_save = f"/mnt/mmlab2024nas/khanhnq/check_point_deeplabv3/{exp_name}"
     os.makedirs(path_save, exist_ok=True)
     
@@ -268,14 +268,16 @@ if __name__ == "__main__":
     patience = 0
     early_stop = 10
     best_model  = None
-    alpha = 0.2
+    lamda1 = 0.2
+    lamda2 = 0.3
+    
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
-        _, train_loss = train_one_epoch(model, lr_scheduler,  optimizer, data_loader, device, epoch, alpha, print_freq=5)
+        _, train_loss = train_one_epoch(model, lr_scheduler,  optimizer, data_loader, device, epoch, lamda1, lamda2, print_freq=5)
         # update the learning rate
         # lr_scheduler.step()
         # evaluate on the test dataset
-        val_loss, val_iou, accuracy_cls = evaluate(model, data_loader_test, alpha, device=device)
+        val_loss, val_iou, accuracy_cls = evaluate(model, data_loader_test, lamda1, lamda2, device=device)
 
         if val_loss < min_loss:
             min_loss = val_loss

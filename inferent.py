@@ -37,7 +37,7 @@ def decode_segmap(mask_tensor, palette):
 
     return rgb_img
 
-def draw_polygon_overlay(img_np, mask_np, palette, alpha=0.4):
+def draw_polygon_overlay(img_np, mask_np, palette, alpha=0.1):
     """
     Vẽ overlay dạng Polygon có đường viền lên ảnh gốc.
     """
