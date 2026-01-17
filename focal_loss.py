@@ -18,7 +18,7 @@ class FocalLoss(nn.Module):
     def forward(self, inputs, targets):
         # inputs: [Batch, Classes, Height, Width] - Logits từ model
         # targets: [Batch, Height, Width] - Nhãn chuẩn (0, 1, 2, 3)
-
+    
         # 1. Tính log_softmax để đảm bảo ổn định (tránh log(0))
         log_p = F.log_softmax(inputs, dim=1)
         

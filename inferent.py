@@ -186,8 +186,8 @@ def inference_single_image(model, image_path, output_path, device='cpu'):
 if __name__ == "__main__":
     # data
     # device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    device =  torch.device('cpu')
-    one_image = True
+    device =  torch.device('cuda')
+    one_image = False
     if  not one_image:
         dataset_test = CustomDataset('/mnt/mmlab2024nas/khanhnq/Dataset/Test_set/test.txt', get_transform(train=False), train = False)
         
@@ -197,7 +197,7 @@ if __name__ == "__main__":
             shuffle=False,
         )
         model = get_model(4, 5)
-        checkpoint_path = "/mnt/mmlab2024nas/khanhnq/check_point_deeplabv3/log11/best_model.pth"
+        checkpoint_path = "/mnt/mmlab2024nas/khanhnq/check_point_deeplabv3/log19/best_model.pth"
 
         # 1. Đọc file checkpoint
         # map_location giúp chuyển model sang đúng thiết bị hiện tại
@@ -210,7 +210,7 @@ if __name__ == "__main__":
         # 3. Chuyển model sang device (GPU/CPU)
         model.to(device)
         
-        path_save_res = '/home/khanhnq/Experiment/Mask_RCNN/log11'
+        path_save_res = '/home/khanhnq/experience/model_multitask/Experimence/log19'
         os.makedirs(os.path.join(path_save_res, "Images_res"), exist_ok=True)
         run_inference(model, data_loader_test, device, path_save_res)
     else:

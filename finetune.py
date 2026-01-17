@@ -152,21 +152,6 @@ class CustomDataset(torch.utils.data.Dataset):
     
 
 
-# def get_model(num_classes):
-#     # Load weights pre-trained trên COCO
-#     weights = DeepLabV3_ResNet101_Weights.DEFAULT
-#     model = deeplabv3_resnet101(weights=weights)
-
-#     # Thay đổi Classifier (DeepLabV3 có classifier chính và aux_classifier)
-#     # Lớp cuối cùng là Conv2d với out_channels = num_classes
-#     in_channels = model.classifier[4].in_channels
-#     model.classifier[4] = torch.nn.Conv2d(in_channels, num_classes, kernel_size=(1, 1))
-    
-#     in_channels_aux = model.aux_classifier[4].in_channels
-#     model.aux_classifier[4] = torch.nn.Conv2d(in_channels_aux, num_classes, kernel_size=(1, 1))
-    
-#     return model
-
 
 
 def get_transform(train):
@@ -199,8 +184,8 @@ if __name__ == "__main__":
     # use our dataset and defined transformations
     dataset_train = CustomDataset('/mnt/mmlab2024nas/khanhnq/Dataset/ImageSets/train.txt', get_transform(train=True))
     # concat train and aug
-    # dataset_aug = CustomDataset('/mnt/mmlab2024nas/khanhnq/Dataset/data_augment/aug.csv', get_transform(train=True), augment=True)
-    # dataset_train = ConcatDataset([dataset_train, dataset_aug])
+    dataset_aug = CustomDataset('/mnt/mmlab2024nas/khanhnq/Dataset/data_augment/aug.csv', get_transform(train=True), augment=True)
+    dataset_train = ConcatDataset([dataset_train, dataset_aug])
     dataset_test = CustomDataset('/mnt/mmlab2024nas/khanhnq/Dataset/ImageSets/test.txt', get_transform(train=False))
 
 
@@ -228,7 +213,6 @@ if __name__ == "__main__":
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.Adam(model.parameters(), lr=0.00001, weight_decay=0.0001)
 
-    # and a learning rate scheduler
     
     # lr_scheduler = torch.optim.lr_scheduler.StepLR(
     #     optimizer,
@@ -255,21 +239,21 @@ if __name__ == "__main__":
         milestones=[warmup_iters]
     )
 
-    exp_name = 'ex1'
-    csv_log_path = f"/home/khanhnq/Experiment/Mask_RCNN/Experimence/{exp_name}/training_log.csv"
+    exp_name = 'log19'
+    csv_log_path = f"/home/khanhnq/experience/model_multitask/Experimence/{exp_name}/training_log.csv"
     path_save = f"/mnt/mmlab2024nas/khanhnq/check_point_deeplabv3/{exp_name}"
     os.makedirs(path_save, exist_ok=True)
     
     with open(csv_log_path, mode='w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['epoch', 'train_loss', 'val_loss', 'val_miou', 'val_accuracy','patience'])
+        writer.writerow(['epoch', 'train_loss', 'val_loss','val_miou', 'val_accuracy','patience'])
 
     min_loss = 9999
     patience = 0
     early_stop = 10
     best_model  = None
     lamda1 = 0.2
-    lamda2 = 0.3
+    lamda2 = 0.4
     
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations

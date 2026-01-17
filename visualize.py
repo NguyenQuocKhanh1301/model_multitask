@@ -23,7 +23,7 @@ def decode_segmap(image, num_classes=4):
     rgb = np.stack([r, g, b], axis=2)
     return rgb
 
-path_compare = '/home/khanhnq/Experiment/Mask_RCNN/log11/training_log.csv'
+path_compare = '/home/khanhnq/experience/model_multitask/Experimence/log19/training_log.csv'
 
 df = pd.read_csv(path_compare)  # đổi tên file cho đúng
 df = df.sort_values("epoch")
@@ -49,4 +49,4 @@ plt.annotate(f"min val_loss={best_val:.4f} @ epoch {best_epoch}",
              textcoords="offset points", xytext=(10, 10))
 
 plt.tight_layout()
-plt.savefig('/home/khanhnq/Experiment/Mask_RCNN/log11/compare_loss.png')
+plt.savefig('/home/khanhnq/experience/model_multitask/Experimence/log19/compare_loss.png')
