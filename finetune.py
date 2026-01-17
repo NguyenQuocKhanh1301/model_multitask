@@ -255,7 +255,7 @@ if __name__ == "__main__":
         milestones=[warmup_iters]
     )
 
-    exp_name = 'ex1'
+    exp_name = 'ex1_aug'
     csv_log_path = f"/home/khanhnq/Experiment/Mask_RCNN/Experimence/{exp_name}/training_log.csv"
     path_save = f"/mnt/mmlab2024nas/khanhnq/check_point_deeplabv3/{exp_name}"
     os.makedirs(path_save, exist_ok=True)
@@ -269,7 +269,7 @@ if __name__ == "__main__":
     early_stop = 10
     best_model  = None
     lamda1 = 0.2
-    lamda2 = 0.3
+    lamda2 = 0.4
     
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
