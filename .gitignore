@@ -1,6 +1,6 @@
 Experimence
 __pycache__
-prompt
+prompt.py
 res_image
 ablation
-demo
+demo.py
