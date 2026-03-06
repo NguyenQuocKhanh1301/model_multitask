@@ -1,35 +1,34 @@
-import math
-import sys
 import time
 import numpy as np
 from tqdm import tqdm
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score
 from metrics import calculate_iou
-from focal_loss import FocalLoss
-
+from monai.losses import DiceFocalLoss
 import torch
 import utils
 
 
 
 
-def train_one_epoch(model, lr_scheduler, optimizer, data_loader, device, epoch, lamda1, lamda2, print_freq, scaler=None):
+def train_one_epoch(model, lr_scheduler, optimizer, data_loader, device, epoch, lamda1, lamda2, lamda3):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value:.6f}"))
     header = f"Epoch: [{epoch}]"
-    seg_criterion = FocalLoss(alpha=[0.0779, 2.4951, 0.9912, 0.4357], gamma=2.0, reduction='mean')
+    
+    criterion_seg = DiceFocalLoss(
+                    sigmoid=False,           
+                    softmax=True,            
+                    gamma=2.0,
+                    alpha=None, 
+                    to_onehot_y=True,       
+                    include_background=True  # include background
+                )
+    # criterion_seg = torch.nn.CrossEntropyLoss()
     criterion = torch.nn.CrossEntropyLoss()
-    # lr_scheduler = None
-    # if epoch == 0:
-    #     warmup_factor = 1.0 / 1000
-    #     warmup_iters = min(1000, len(data_loader) - 1)
-
-    #     lr_scheduler = torch.optim.lr_scheduler.LinearLR(
-    #         optimizer, start_factor=warmup_factor, total_iters=warmup_iters
-    #     )
         
     total_loss = 0
+    seg_loss, cls_loss = 0, 0
     for images, targets, cls_labels, name in tqdm(data_loader, desc=header, total=len(data_loader)):
         images = images.to(device)
         targets = targets.to(device)
@@ -40,46 +39,56 @@ def train_one_epoch(model, lr_scheduler, optimizer, data_loader, device, epoch, 
 
         seg_output, pred_cls, out_put_aux = out_puts['out'], out_puts['cls'], out_puts['aux']
 
-        # Tính loss chính
-        loss_seg = seg_criterion(seg_output, targets)
+        loss_seg = criterion_seg(seg_output, targets.unsqueeze(1))
+        # loss_seg = criterion_seg(seg_output, targets.squeeze(1)) # CE
         loss_cls = criterion(pred_cls, cls_labels)
 
-        # (Tùy chọn) Nếu bạn muốn dùng thêm Aux Loss để kết quả tốt hơn:
+        # seg_loss += loss_seg.item()
+        cls_loss += loss_cls.item()
+
         if "aux" in out_puts:
-            aux_loss = criterion(out_put_aux, targets)
-        # loss = loss_seg * alpha + (1-alpha) * loss_cls + 0.4 * aux_loss
-        loss = loss_seg  + lamda1 * loss_cls + lamda2 * aux_loss
+            aux_loss = criterion_seg(out_put_aux, targets.unsqueeze(1))
+            # aux_loss = criterion_seg(out_put_aux, targets.squeeze(1))
+            
+        loss = lamda1 * loss_seg  + lamda2 * loss_cls + lamda3 * aux_loss
+        # loss = loss_seg + lamda2 * aux_loss
         total_loss += loss.item()
         
         loss.backward()
         optimizer.step()
-        
-        
-        
+
         if lr_scheduler is not None:
             lr_scheduler.step()
 
         metric_logger.update(loss=loss )
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
-        
+    print(f"Epoch [{epoch}] [Train] Seg loss [{seg_loss / len(data_loader):.4f}] Cls loss [{cls_loss / len(data_loader):.4f}]")
+
     avg_loss = total_loss / len(data_loader)
     return metric_logger, avg_loss
 
 
 
 @torch.inference_mode()
-def evaluate(model, data_loader, lamda1, lamda2,  device):
+def evaluate(model, data_loader, lamda1, lamda2, lamda3,  device):
     torch.set_num_threads(1)
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
-    header = "Test:"
-    # criterion_seg = torch.nn.CrossEntropyLoss()
-    seg_criterion = FocalLoss(alpha=[0.0779, 2.4951, 0.9912, 0.4357], gamma=2.0, reduction='mean')
+    header = "Val:"
     
+    criterion_seg = DiceFocalLoss(
+                    sigmoid=False,           
+                    softmax=True,            
+                    gamma=2.0,
+                    to_onehot_y=True,      
+                    include_background=True  # include background
+                )
+    # criterion_seg = torch.nn.CrossEntropyLoss()
     criterion_cls = torch.nn.CrossEntropyLoss()
 
 
     total_iou = 0
+    seg_loss, cls_loss = 0, 0
     predicts = []
     groundtruth = []
     total_loss = 0
@@ -97,16 +106,20 @@ def evaluate(model, data_loader, lamda1, lamda2,  device):
             groundtruth.extend(cls_label.detach().cpu().numpy().tolist())
 
 
-            # Tính loss chính
-            loss_seg = seg_criterion(seg_output, targets)
+            loss_seg = criterion_seg(seg_output, targets.unsqueeze(1))
+            # loss_seg = criterion_seg(seg_output, targets.squeeze(1)) # CE
             loss_cls = criterion_cls(pred_cls, cls_label)
-
-            # (Tùy chọn) Nếu bạn muốn dùng thêm Aux Loss để kết quả tốt hơn:
-            if "aux" in out_puts:
-                aux_loss = seg_criterion(aux, targets)
-            # loss = alpha * loss_seg + (1-alpha) * loss_cls + 0.4 * aux_loss
-            loss = loss_seg + lamda1 * loss_cls + lamda2 * aux_loss
             
+            seg_loss += loss_seg.item()
+            cls_loss += loss_cls.item()
+
+            if "aux" in out_puts:
+                aux_loss = criterion_seg(aux, targets.unsqueeze(1))
+                # aux_loss = criterion_seg(aux, targets.squeeze(1))
+
+            loss = lamda1 * loss_seg + lamda2 * loss_cls + lamda3 * aux_loss
+            # loss =   loss_seg + lamda2 * aux_loss
+
             total_loss += loss.item()
             total_iou += calculate_iou(seg_output, targets, 4)
             evaluator_time = time.time() - model_time
@@ -118,6 +131,7 @@ def evaluate(model, data_loader, lamda1, lamda2,  device):
         # gather the stats from all processes
         metric_logger.synchronize_between_processes()
         print(f'IOU: {avg_iou}')
+        print(f'[Val] [Segmentation Loss]: {seg_loss / len(data_loader):.4f}  [cls Loss]: {cls_loss / len(data_loader):.4f}')
 
     return avg_loss, avg_iou, accuracy_cls
 

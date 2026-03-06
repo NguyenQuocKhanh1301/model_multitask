@@ -1,4 +1,6 @@
-dataset
 Experimence
 __pycache__
 prompt.py
+res_image
+ablation
+demo.py

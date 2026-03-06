@@ -23,7 +23,6 @@ class DeepLabV3_SegCls(nn.Module):
         self.classifier = base.classifier
         self.aux_classifier = base.aux_classifier
 
-        # ====== nhánh cls lấy feature trước classifier[4] ======
         # shared_feat = classifier[:-1](backbone_out)  -> (N, in_ch, H', W')
         self.shared_head = nn.Sequential(*list(self.classifier.children())[:-1])
         self.cls_head = nn.Sequential(

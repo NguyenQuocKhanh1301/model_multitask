@@ -40,9 +40,8 @@ def calculate_iou(preds, labels, num_classes):
 
 def dice_iou_multiclass_from_logits(outputs, target, num_classes=4, include_background=True, eps=1e-7):
     """
-    outputs: Tensor [B,C,H,W] hoặc list/tuple mà phần tử cuối là [B,C,H,W]
+    outputs: Tensor [B,C,H,W] h
     target:  Tensor [B,H,W] (0..C-1)
-    Bỏ qua class nếu cả Pred và GT đều không có class đó.
     """
     
     # Pred label map
@@ -67,7 +66,6 @@ def dice_iou_multiclass_from_logits(outputs, target, num_classes=4, include_back
     union = pred_sum + targ_sum - inter
     iou_per_class = (inter + eps) / (union + eps)
 
-    # Bỏ qua class nếu pred_sum == 0 và targ_sum == 0
     present = (pred_sum + targ_sum) > 0
 
     nan = torch.tensor(float("nan"), device=dice_per_class.device)

@@ -5,12 +5,15 @@ import os
 import cv2
 import io
 from PIL import Image
-from torchvision import tv_tensors
 import torch.nn.functional as Fnn
 from google.genai import types
+from transforms import JointSegTransform
+import torchvision.transforms.functional as TF
+from torchvision.transforms import InterpolationMode
+
 
 # Import các hàm từ file của bạn
-from finetune import get_model, get_transform 
+from finetune import get_model 
 from prompt import client # Đảm bảo file prompt.py đã cấu hình client genai
 
 # --- CẤU HÌNH ---
@@ -23,6 +26,12 @@ MY_PALETTE = {
 ID2COLOR = {v: k for k, v in MY_PALETTE.items()}
 CLASS_NAMES = ['Màng nhĩ phải bình thường', 'Màng nhĩ trái bình thường', 'Viêm tai giữa cấp', 'Viêm tai giữa mạn tính', 'Viêm tai giữa tiết dịch' ]
 
+
+def get_transform(image):
+    image = TF.resize(image, (224, 224), interpolation=InterpolationMode.BILINEAR)
+    image = TF.to_tensor(image)
+    image = TF.convert_image_dtype(image, torch.float32)
+    return image
 
 
 # --- HÀM HỖ TRỢ ---
@@ -63,7 +72,7 @@ st.set_page_config(page_title="AI Endoscopy Diagnosis", layout="wide")
 st.title("🩺 Hệ thống phân tích nội soi tai")
 st.sidebar.header("Cấu hình")
 
-checkpoint_path = st.sidebar.text_input("Đường dẫn Checkpoint", "/mnt/mmlab2024nas/khanhnq/check_point_deeplabv3/log14/best_model.pth")
+checkpoint_path = st.sidebar.text_input("Đường dẫn Checkpoint", "/mnt/mmlab2024nas/khanhnq/check_point_deeplabv3/exp_c2/best_model.pth")
 uploaded_file = st.sidebar.file_uploader("Chọn ảnh nội soi...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
@@ -78,8 +87,8 @@ if uploaded_file is not None:
     img_np = np.array(img_pil)
 
     # 3. Tiền xử lý & Dự đoán
-    transform = get_transform(False)
-    input_tensor = transform(tv_tensors.Image(img_pil)).unsqueeze(0).to(device)
+    # transform = get_transform()
+    input_tensor = get_transform(img_pil).unsqueeze(0).to(device)
 
     with torch.no_grad():
         outputs = model(input_tensor)
@@ -153,7 +162,7 @@ if uploaded_file is not None:
             Nếu có mask nào trên hình, phải ghi chú màu mask ngay sau tên bộ phận đó trong mô tả, nếu không có thì không ghi chú vào mô tả.
             Ví dụ:
             Có: "tam giác sáng rõ (mask cam), cán xương búa thấy rõ (mask xanh) ".
-            không có: "Tam giác sáng mất, cán xương búa mất".
+            Không có: "Tam giác sáng mất, cán xương búa mất".
             
             Chỉ chọn 1 trong các mẫu dưới đây để điền thông tin:
             Mẫu 1: Mô Tả: Màng nhĩ nguyên vẹn, tam giác sáng rõ , cán xương búa thấy rõ
